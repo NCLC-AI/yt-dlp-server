@@ -1,11 +1,9 @@
 version: '3'
 
 services:
-  youtube-mp3-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: youtube-mp3-api
+  yt-dlp-server:
+    image: n8nai/yt-dlp-server:latest
+    container_name: yt-dlp-server
     restart: always
     ports:
       - "5000:5000"
