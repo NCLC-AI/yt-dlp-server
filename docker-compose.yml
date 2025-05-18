@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  youtube-mp3-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: youtube-mp3-api
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./downloads:/app/downloads
+    environment:
+      - PORT=5000
+      - DOWNLOAD_DIR=/app/downloads
+      - DEBUG=true  # 디버그 모드 활성화
+      - PYTHONUNBUFFERED=1  # 로그 출력 개선
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # 로그 설정 추가
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
