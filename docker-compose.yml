@@ -2,23 +2,25 @@ version: '3.8'
 
 services:
   git-cloner:
-    image: alpine/git:latest
+    image: alpine:latest
     container_name: git-cloner
     volumes:
       - app-source:/git-data
     command: >
       sh -c "
+        apk add --no-cache git &&
         if [ ! -d /git-data/.git ]; then
           echo 'Cloning repository...'
           git clone https://github.com/NCLC-AI/yt-dlp-server.git /git-data
         else
           echo 'Repository exists, pulling latest changes...'
           cd /git-data && git pull origin main
-        fi
+        fi &&
+        echo 'Git operation completed successfully'
       "
 
   yt-dlp-server:
-    build: .
+    image: python:3.11-slim
     container_name: yt-dlp-server
     restart: always
     depends_on:
@@ -29,6 +31,22 @@ services:
     volumes:
       - ./downloads:/app/downloads
       - app-source:/app/source
+    working_dir: /app/source
+    environment:
+      - PORT=5000
+      - DOWNLOAD_DIR=/app/downloads
+      - DEBUG=true
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app/source
+    command: >
+      bash -c "
+        apt-get update && 
+        apt-get install -y --no-install-recommends ffmpeg curl && 
+        pip install --no-cache-dir -r requirements.txt && 
+        mkdir -p /app/downloads/status && 
+        chmod -R 777 /app/downloads &&
+        python -m app.main
+      "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
