@@ -1,27 +1,44 @@
-version: '3'
+version: '3.8'
 
 services:
+  git-cloner:
+    image: alpine/git:latest
+    container_name: git-cloner
+    volumes:
+      - app-source:/git-data
+    command: >
+      sh -c "
+        if [ ! -d /git-data/.git ]; then
+          echo 'Cloning repository...'
+          git clone https://github.com/NCLC-AI/yt-dlp-server.git /git-data
+        else
+          echo 'Repository exists, pulling latest changes...'
+          cd /git-data && git pull origin main
+        fi
+      "
+
   yt-dlp-server:
-    image: n8nai/yt-dlp-server:latest
+    build: .
     container_name: yt-dlp-server
     restart: always
+    depends_on:
+      git-cloner:
+        condition: service_completed_successfully
     ports:
       - "5000:5000"
     volumes:
       - ./downloads:/app/downloads
-    environment:
-      - PORT=5000
-      - DOWNLOAD_DIR=/app/downloads
-      - DEBUG=true  # 디버그 모드 활성화
-      - PYTHONUNBUFFERED=1  # 로그 출력 개선
+      - app-source:/app/source
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    # 로그 설정 추가
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  app-source:
