@@ -3,7 +3,7 @@ version: '3.8'
 services:
   git-cloner:
     image: alpine/git:latest
-    container_name: yt-dlp-git-cloner
+    container_name: git-cloner
     volumes:
       - app-source:/git-data
     entrypoint: ""
@@ -26,8 +26,6 @@ services:
     depends_on:
       git-cloner:
         condition: service_completed_successfully
-    ports:
-      - "5000:5000"  # 포트 노출
     volumes:
       - ./downloads:/app/downloads
       - app-source:/app/source
@@ -49,7 +47,21 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ytdlp.rule=Host(`YOUR_YTDLP_DOMAIN`)"
+      - "traefik.http.routers.ytdlp.entrypoints=websecure"
+      - "traefik.http.routers.ytdlp.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.ytdlp.loadbalancer.server.port=5000"
+    networks:
+      - traefik_network  # 일반적인 Traefik 네트워크 이름
 
 volumes:
   app-source:
     driver: local
+
+networks:
+  traefik_network:
+    external: true
+    # 기존에 생성된 Traefik 네트워크가 있다면 해당 이름으로 변경
+    # 예: traefik_default, proxy, web 등
