@@ -10,14 +10,11 @@ RUN apt-get update --fix-missing && \
 # 작업 디렉토리 설정
 WORKDIR /app/source
 
-# 다운로드 디렉토리 생성
-RUN mkdir -p /app/downloads && \
-    mkdir -p /app/downloads/status && \
-    chmod -R 777 /app/downloads
+# /tmp 디렉토리 권한 설정 (이미 존재하지만 명시적으로)
+RUN chmod 1777 /tmp
 
 # 환경 변수 설정
 ENV PYTHONPATH=/app/source
-ENV DOWNLOAD_DIR=/app/downloads
 ENV PORT=5000
 ENV HOST=0.0.0.0
 ENV DEBUG=true

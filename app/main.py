@@ -14,7 +14,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('/app/downloads/debug.log')
+        logging.FileHandler('/tmp/debug.log')  # 로그도 /tmp로 이동
     ]
 )
 logger = logging.getLogger(__name__)
@@ -22,12 +22,18 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # CORS 허용
 
-# 다운로드 경로 설정
-DOWNLOAD_DIR = os.environ.get('DOWNLOAD_DIR', '/app/downloads')
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+# 다운로드 경로를 /tmp 기반으로 변경
+BASE_DOWNLOAD_DIR = '/tmp'
+os.makedirs(BASE_DOWNLOAD_DIR, exist_ok=True)
 
-# 작업 관리자 초기화
-task_manager = TaskManager(DOWNLOAD_DIR)
+# 작업 관리자 초기화 (기본 디렉토리만 전달)
+task_manager = TaskManager(BASE_DOWNLOAD_DIR)
+
+def get_task_download_dir(task_id):
+    """특정 작업의 다운로드 디렉토리 반환"""
+    task_dir = os.path.join(BASE_DOWNLOAD_DIR, task_id)
+    os.makedirs(task_dir, exist_ok=True)
+    return task_dir
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -59,8 +65,11 @@ def request_download():
         task_id = task_manager.create_task(url, quality)
         logger.info(f"Created download task {task_id} for URL: {url}")
         
-        # 비동기 다운로드 시작
-        start_download_task(task_manager, task_id, url, DOWNLOAD_DIR, quality)
+        # 작업별 다운로드 디렉토리 생성
+        task_download_dir = get_task_download_dir(task_id)
+        
+        # 비동기 다운로드 시작 (작업별 디렉토리 사용)
+        start_download_task(task_manager, task_id, url, task_download_dir, quality)
         
         # 응답 반환
         response = {
@@ -216,10 +225,44 @@ def list_tasks():
         logger.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
+# 임시 파일 정리를 위한 엔드포인트 (옵션)
+@app.route('/cleanup', methods=['POST'])
+def cleanup_old_files():
+    """오래된 임시 파일 정리"""
+    try:
+        import shutil
+        import glob
+        
+        # 1시간 이상 된 디렉토리 찾기
+        current_time = time.time()
+        cleanup_count = 0
+        
+        for task_dir in glob.glob(os.path.join(BASE_DOWNLOAD_DIR, '*')):
+            if os.path.isdir(task_dir):
+                # 디렉토리 생성 시간 확인
+                dir_mtime = os.path.getmtime(task_dir)
+                if current_time - dir_mtime > 3600:  # 1시간 = 3600초
+                    try:
+                        shutil.rmtree(task_dir)
+                        cleanup_count += 1
+                        logger.info(f"Cleaned up old directory: {task_dir}")
+                    except Exception as e:
+                        logger.error(f"Failed to cleanup {task_dir}: {e}")
+        
+        return jsonify({
+            "status": "success",
+            "message": f"정리된 디렉토리 수: {cleanup_count}"
+        })
+        
+    except Exception as e:
+        logger.error(f"정리 작업 오류: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     host = os.environ.get('HOST', '0.0.0.0')
     debug = os.environ.get('DEBUG', 'false').lower() == 'true'
     
     logger.info(f"Starting server on {host}:{port}, debug mode: {debug}")
+    logger.info(f"Base download directory: {BASE_DOWNLOAD_DIR}")
     app.run(host=host, port=port, debug=debug)

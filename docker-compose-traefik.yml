@@ -27,11 +27,9 @@ services:
       git-cloner:
         condition: service_completed_successfully
     volumes:
-      - ./downloads:/app/downloads
       - app-source:/app/source
     environment:
       - PORT=5000
-      - DOWNLOAD_DIR=/app/downloads
       - DEBUG=true
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app/source
@@ -54,7 +52,7 @@ services:
       - "traefik.http.routers.ytdlp.tls.certresolver=mytlschallenge"
       - "traefik.http.services.ytdlp.loadbalancer.server.port=5000"
     networks:
-      - traefik_network  # 일반적인 Traefik 네트워크 이름
+      - traefik_network
 
 volumes:
   app-source:
@@ -63,5 +61,3 @@ volumes:
 networks:
   traefik_network:
     external: true
-    # 기존에 생성된 Traefik 네트워크가 있다면 해당 이름으로 변경
-    # 예: traefik_default, proxy, web 등

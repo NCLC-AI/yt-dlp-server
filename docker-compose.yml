@@ -27,13 +27,12 @@ services:
       git-cloner:
         condition: service_completed_successfully
     ports:
-      - "5000:5000"  # 포트 노출
+      - "5000:5000"
     volumes:
-      - ./downloads:/app/downloads
       - app-source:/app/source
+      # /tmp은 컨테이너 내부에서 자동으로 정리되므로 별도 볼륨 불필요
     environment:
       - PORT=5000
-      - DOWNLOAD_DIR=/app/downloads
       - DEBUG=true
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app/source
